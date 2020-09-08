@@ -1,4 +1,4 @@
-module mlpack.org/v1/mlpack v3.4.1
+module github.com/Yashwants19/mlpack-go v3.4.1
 
 go 1.13
 
