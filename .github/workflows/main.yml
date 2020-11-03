@@ -20,7 +20,7 @@ jobs:
           sed --in-place 's/MLPACK_VERSION?=[0-9]\.[0-9]\.[0-9]/MLPACK_VERSION?='${MLPACK_RELEASE_VERSION}'/g' \
               Makefile;
           go get -u gonum.org/v1/gonum/...
-          TMP_DIR?=/tmp/
+          TMP_DIR=/tmp/
           make deps setup_armadillo download
           cd $(TMP_DIR)mlpack/mlpack-$(MLPACK_RELEASE_VERSION) && mkdir build && cd build && \
           cmake -D BUILD_TESTS=OFF           \
