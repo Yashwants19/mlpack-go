@@ -1,0 +1,45 @@
+name: Release
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: mlpack-release
+jobs:
+  myEvent:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.client_payload.ref }}
+      - name: Extract mlpack version
+        id: mlpack_version
+        run: |
+          # Ping version information upstream
+          MLPACK_RELEASE_JSON=$(curl -sL https://api.github.com/repos/mlpack/mlpack/releases/latest)
+          MLPACK_RELEASE_VERSION=$(jq -r ".tag_name" <<< "$MLPACK_RELEASE_JSON")
+          echo ::set-output name=release_tag::$(echo $MLPACK_RELEASE_VERSION)
+          sed --in-place 's/MLPACK_VERSION?=[0-9]\.[0-9]\.[0-9]/MLPACK_VERSION?='${MLPACK_RELEASE_VERSION}'/g' \
+              Makefile;
+          go get -u gonum.org/v1/gonum/...
+          TMP_DIR?=/tmp/
+          make deps setup_armadillo download
+          cd $(TMP_DIR)mlpack/mlpack-$(MLPACK_RELEASE_VERSION) && mkdir build && cd build && \
+          cmake -D BUILD_TESTS=OFF           \
+          	    -D BUILD_JULIA_BINDINGS=OFF  \
+          	    -D BUILD_PYTHON_BINDINGS=OFF \
+          	    -D BUILD_CLI_EXECUTABLES=OFF \
+           	    -D BUILD_GO_BINDINGS=ON ..
+          make go -j2 && cd -
+          rm -r -v !(Makefile|Dockerfile|README.md|LICENSE.txt|rel)
+          mv $(TMP_DIR)mlpack/mlpack-$(MLPACK_RELEASE_VERSION)build/src/mlpack/bindings/go/src/mlpack.org/v1/mlpack .
+          rm -f *.so *.so.*
+          make clean
+
+      - name: Create Pull Request For Release
+        uses: peter-evans/create-pull-request@v3
+        with:
+          commit-message: Update to version ${{ steps.mlpack_version.outputs.release_tag }}
+          title: Update to version ${{ steps.mlpack_version.outputs.release_tag }}
+          body: |
+            Update go-bindings to ${{ steps.mlpack_version.outputs.release_tag }}.
+          labels: t:release
+          branch: mlpack-release-${{ steps.mlpack_version.outputs.release_tag }}
